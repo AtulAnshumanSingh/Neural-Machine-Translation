@@ -123,8 +123,7 @@ class VocabEntry(object):
         word_ids = self.words2indices(sents)
         sents_t = pad_sents(word_ids, self['<pad>'])
         with tf.device("GPU:0"):
-			sents_var = tf.convert_to_tensor(sents_var)
-        return sents_var
+			return tf.convert_to_tensor(sents_var)
 
     @staticmethod
     def from_corpus(corpus, size, freq_cutoff=2):
