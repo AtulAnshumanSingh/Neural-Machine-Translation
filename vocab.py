@@ -122,9 +122,8 @@ class VocabEntry(object):
         """
         word_ids = self.words2indices(sents)
         sents_t = pad_sents(word_ids, self['<pad>'])
-        with tf.device("GPU:0"):
-			return tf.convert_to_tensor(sents_var)
-
+        sent_array = np.array(sents_t)
+        return sent_array
     @staticmethod
     def from_corpus(corpus, size, freq_cutoff=2):
         """ Given a corpus construct a Vocab Entry.
