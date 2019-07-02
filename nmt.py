@@ -178,8 +178,9 @@ def train():
                                                          batch,
                                                          batch_loss.numpy()))
       # saving (checkpoint) the model every 2 epochs
-      if (epoch + 1) % 2 == 0:
-        checkpoint.save(file_prefix = checkpoint_prefix)
+      #if (epoch + 1) % 2 == 0:
+      print("Saving model...")
+	  checkpoint.save(file_prefix = checkpoint_prefix)
     
       print('Epoch {} Loss {:.4f}'.format(epoch + 1,
                                           total_loss / BATCH_SIZE))
@@ -208,7 +209,7 @@ if __name__ == '__main__':
     HIDDEN_SIZE = 256
     DROPOUT_RATE = 0.2
     BATCH_SIZE = 32
-    NUM_TRAIN_STEPS = 5
+    NUM_TRAIN_STEPS = 2
     BUFFER_SIZE = len(src_pad)
     steps_per_epoch = len(src_pad)//BATCH_SIZE
     vocab_inp_size = len(VOCAB.src) +1
