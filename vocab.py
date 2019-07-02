@@ -23,7 +23,6 @@ import numpy as np
 
 
 
-
 class VocabEntry(object):
     """ Vocabulary Entry, i.e. structure containing either
     src or tgt language terms.
@@ -112,7 +111,7 @@ class VocabEntry(object):
         """
         return [self.id2word[w_id] for w_id in word_ids]
 
-    def to_input_tensor(self, sents: List[List[str]], device: str):
+    def to_input_tensor(self, sents: List[List[str]]):
         """ Convert list of sentences (words) into tensor with necessary padding for 
         shorter sentences.
 
@@ -125,6 +124,7 @@ class VocabEntry(object):
         sents_t = pad_sents(word_ids, self['<pad>'])
         sent_array = np.array(sents_t)
         return sent_array
+
     @staticmethod
     def from_corpus(corpus, size, freq_cutoff=2):
         """ Given a corpus construct a Vocab Entry.
