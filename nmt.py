@@ -180,7 +180,7 @@ def train():
       # saving (checkpoint) the model every 2 epochs
       #if (epoch + 1) % 2 == 0:
       print("Saving model...")
-	  checkpoint.save(file_prefix = checkpoint_prefix)
+      checkpoint.save(file_prefix = checkpoint_prefix)
     
       print('Epoch {} Loss {:.4f}'.format(epoch + 1,
                                           total_loss / BATCH_SIZE))
