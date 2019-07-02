@@ -204,11 +204,11 @@ if __name__ == '__main__':
     tgt_pad = VOCAB.tgt.to_input_tensor(tgt_sents)
     
     print("defining parameters...")
-    EMBED_SIZE = 300
-    HIDDEN_SIZE = 1024
+    EMBED_SIZE = 256
+    HIDDEN_SIZE = 256
     DROPOUT_RATE = 0.2
-    BATCH_SIZE = 64
-    NUM_TRAIN_STEPS = 100
+    BATCH_SIZE = 32
+    NUM_TRAIN_STEPS = 5
     BUFFER_SIZE = len(src_pad)
     steps_per_epoch = len(src_pad)//BATCH_SIZE
     vocab_inp_size = len(VOCAB.src) +1
