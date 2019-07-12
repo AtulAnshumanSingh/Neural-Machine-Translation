@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Usage:
-    nmt.py --vocab=<file> --src-file=<file> --tgt-file=<file>
-"""
-
 import os
 from docopt import docopt
 import numpy as np
@@ -185,44 +178,85 @@ def train():
       print('Epoch {} Loss {:.4f}'.format(epoch + 1,
                                           total_loss / BATCH_SIZE))
       print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
-  
-  
-if __name__ == '__main__':
+
+def test():
     
-    args = docopt(__doc__)
-    
-    print('reading vocabulary file: %s' % args['--vocab'])
-    VOCAB = Vocab.load(args['--vocab'])
-    
-    print('reading source sentence file: %s' % args['--src-file'])
-    src_sents = read_file(args['--src-file'], source='src')
-    
-    print('reading target sentence file: %s' % args['--tgt-file'])
-    tgt_sents = read_file(args['--tgt-file'], source='tgt')
-    
-    print("padding sequences...")
-    src_pad = VOCAB.src.to_input_tensor(src_sents)
-    tgt_pad = VOCAB.tgt.to_input_tensor(tgt_sents)
-    
-    print("defining parameters...")
-    EMBED_SIZE = 256
-    HIDDEN_SIZE = 256
+    vocab_inp_size = len(VOCAB.src) +1
+    vocab_tar_size = len(VOCAB.tgt) +1
+    EMBED_SIZE = 2
+    HIDDEN_SIZE = 2
     DROPOUT_RATE = 0.2
-    BATCH_SIZE = 32
+    BATCH_SIZE = 1000
     NUM_TRAIN_STEPS = 2
     BUFFER_SIZE = len(src_pad)
     steps_per_epoch = len(src_pad)//BATCH_SIZE
-    vocab_inp_size = len(VOCAB.src) +1
-    vocab_tar_size = len(VOCAB.tgt) +1
     
-    print("preparing data pipline...") 
-    dataset = tf.data.Dataset.from_tensor_slices((src_pad, tgt_pad)).shuffle(BUFFER_SIZE)
-    dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
     
-    print("deleting files not required...") 
-    del src_sents,tgt_sents,src_pad, tgt_pad
+    print("initializing seq2seq model...")
+    print("initializing seq2seq model... encoder")
+    encoder = Encoder(vocab_inp_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
+    print("initializing seq2seq model... decoder")
+    decoder = Decoder(vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
+    print("initializing seq2seq model... attention layer")
+    attention_layer = BahdanauAttention(10)
+    print("initializing seq2seq model... optimizer")
+    optimizer = tf.keras.optimizers.Adam()
+    print("initializing seq2seq model... loss")
+    loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
     
-    print("beginning training...")
-    train()
+    print("initializing seq2seq model... defining checkpoint")
+    checkpoint, checkpoint_prefix = define_checkpoints(optimizer, encoder, decoder)
     
-    print("training complete!")
+    for epoch in range(NUM_TRAIN_STEPS):
+      start = time.time()
+    
+      enc_hidden = encoder.initialize_hidden_state()
+      total_loss = 0
+    
+      for (batch, (inp, targ)) in enumerate(dataset.take(BUFFER_SIZE)):
+    
+        batch_loss = train_step(inp, targ, enc_hidden, encoder = encoder, 
+                                decoder = decoder, attention = attention_layer, 
+                                optimizer = optimizer, loss_object = loss_object)
+        total_loss += batch_loss
+        if batch % 100 == 0:
+          print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1,
+                                                         batch,
+                                                         batch_loss.numpy()))
+      # saving (checkpoint) the model every 2 epochs
+      #if (epoch + 1) % 2 == 0:
+      print("Saving model...")
+      checkpoint.save(file_prefix = checkpoint_prefix)
+    
+      print('Epoch {} Loss {:.4f}'.format(epoch + 1,
+                                          total_loss / BATCH_SIZE))
+      print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+
+    
+def decode(sentence):
+    
+    print('processing sentence...')
+    VOCAB = Vocab.load('VOCAB_FILE')
+    src_sents = read_sent(sentence, source='src')
+    src_pad = VOCAB.src.to_input_tensor(src_sents)
+    
+    for t in range(50):
+        predictions, dec_hidden, attention_weights = decoder(dec_input,
+                                                             dec_hidden,
+                                                             enc_out)
+
+        # storing the attention weights to plot later on
+        attention_weights = tf.reshape(attention_weights, (-1, ))
+        attention_plot[t] = attention_weights.numpy()
+
+        predicted_id = tf.argmax(predictions[0]).numpy()
+
+        result += targ_lang.index_word[predicted_id] + ' '
+
+        if targ_lang.index_word[predicted_id] == '<end>':
+            return result, sentence, attention_plot
+
+        # the predicted ID is fed back into the model
+        dec_input = tf.expand_dims([predicted_id], 0)
+
+    return result, sentence, attention_plot

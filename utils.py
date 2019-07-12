@@ -35,6 +35,26 @@ def read_file(filepath, source):
     
     return data
 
+def read_sent(sent, source):
+    """ 
+        Read the source and the target file:
+        @param source == 'src': source language file
+        @param source == 'tgt': target language file
+        @param filepath: path to the file containing the corpus
+        
+    """
+    data = []
+        
+    sentence = sent.strip().split(' ')
+    """ append "<s> and </s> only to target source """
+    
+    if source == 'tgt':
+        sentence = ['<s>'] + sentence + ['</s>']
+    
+    data.append(sentence)
+    
+    return data
+
 def pad_sents(sents, pad_token):
     """ 
     Pad list of sentences according to the longest sentence in the batch.
@@ -50,6 +70,9 @@ def pad_sents(sents, pad_token):
     
     max_len = 0
 
+    
+    #if any(isinstance(el, list) for el in sents):
+        
     for sent in sents:
         
         if len(sent) > max_len:
@@ -62,7 +85,9 @@ def pad_sents(sents, pad_token):
         if len(sent) < max_len:
             sent = sent + [pad_token] * (max_len - len(sent))
         
-        sents_padded.append(sent)
+        sents_padded.append(sent) 
+    #else:
+    #    sents_padded = sents
     
     return sents_padded
 
