@@ -17,7 +17,7 @@ import pandas as pd
 import tensorflow as tf
 from utils import *
 from vocab import *
-from nmt import Encoder, Decoder, BahdanauAttention, loss_function, define_checkpoints, train_step, train, decode 
+from nmt import Encoder, Decoder, Attention, NMT, define_checkpoints, train_step, train, decode 
 import math
 import time
 
@@ -58,7 +58,17 @@ if __name__ == '__main__':
     
     if args['train']:
         print("beginning training...")
-        train()
+        train(dataset, 
+              EMBED_SIZE, 
+              HIDDEN_SIZE, 
+              DROPOUT_RATE, 
+              BATCH_SIZE, 
+              NUM_TRAIN_STEPS, 
+              BUFFER_SIZE,
+              steps_per_epoch,
+              vocab_inp_size,
+              vocab_tar_size,
+              VOCAB)
     
     if args['batch_decode']:        
         raise NotImplementedError

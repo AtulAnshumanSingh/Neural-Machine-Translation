@@ -8,7 +8,6 @@ from vocab import *
 import math
 import time
 
-
 class Encoder(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, enc_units, batch_sz):
     super(Encoder, self).__init__()
@@ -28,9 +27,9 @@ class Encoder(tf.keras.Model):
   def initialize_hidden_state(self):
     return tf.zeros((self.batch_sz, self.enc_units))
 
-class BahdanauAttention(tf.keras.Model):
+class Attention(tf.keras.Model):
   def __init__(self, units):
-    super(BahdanauAttention, self).__init__()
+    super(Attention, self).__init__()
     self.W1 = tf.keras.layers.Dense(units)
     self.W2 = tf.keras.layers.Dense(units)
     self.V = tf.keras.layers.Dense(1)
@@ -68,7 +67,7 @@ class Decoder(tf.keras.Model):
     self.fc = tf.keras.layers.Dense(vocab_size)
 
     # used for attention
-    self.attention = BahdanauAttention(self.dec_units)
+    self.attention = Attention(self.dec_units)
 
   def call(self, x, hidden, enc_output):
     # enc_output shape == (batch_size, max_length, hidden_size)
@@ -91,45 +90,54 @@ class Decoder(tf.keras.Model):
 
     return x, state, attention_weights
 
-def loss_function(real, pred, loss_object):
-  mask = tf.math.logical_not(tf.math.equal(real, 0))
-  loss_ = loss_object(real, pred)
 
-  mask = tf.cast(mask, dtype=loss_.dtype)
-  loss_ *= mask
-
-  return tf.reduce_mean(loss_)
-
-def define_checkpoints(optimizer, encoder, decoder):
-    checkpoint_dir = './training_checkpoints'
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-    checkpoint = tf.train.Checkpoint(optimizer=optimizer,
-                                     encoder=encoder,
-                                     decoder=decoder)
-    return checkpoint, checkpoint_prefix
+# Declare an NMT class to call other classes
+class NMT(tf.keras.Model):
+    
+    def __init__(self, vocab_inp_size, vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE):
+        super(NMT, self).__init__()
+        self.encoder = Encoder(vocab_inp_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
+        self.decoder = Decoder(vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
+    
+    def call(self, source, target, VOCAB, enc_hidden, loss_object, BATCH_SIZE):
+        
+        enc_output, enc_hidden = self.encoder(source, enc_hidden)
+        dec_hidden = enc_hidden
+        
+        dec_input = tf.expand_dims([VOCAB.tgt['<s>']] * BATCH_SIZE, 1)
+        
+        loss = 0
+        
+        for t in range(1, target.shape[1]):
+          # passing enc_output to the decoder
+          predictions, dec_hidden, _ = self.decoder(dec_input, dec_hidden, enc_output)
+    
+          loss += self.loss_function(target[:, t], predictions, loss_object)
+    
+          # using teacher forcing
+          dec_input = tf.expand_dims(target[:, t], 1)
+        
+        return loss
+        
+    def loss_function(self,real, pred, loss_object):
+      mask = tf.math.logical_not(tf.math.equal(real, 0))
+      loss_ = loss_object(real, pred)
+    
+      mask = tf.cast(mask, dtype=loss_.dtype)
+      loss_ *= mask
+    
+      return tf.reduce_mean(loss_)
 
 @tf.function
-def train_step(inp, targ, enc_hidden, encoder, decoder, attention, optimizer , loss_object):
+def train_step(model, inp, targ, VOCAB, enc_hidden, optimizer, loss_object, BATCH_SIZE):
   loss = 0
   
   with tf.GradientTape() as tape:
-    enc_output, enc_hidden = encoder(inp, enc_hidden)
-    dec_hidden = enc_hidden
-    
-    dec_input = tf.expand_dims([VOCAB.tgt['<s>']] * BATCH_SIZE, 1)
-    # Teacher forcing - feeding the target as the next input
-    for t in range(1, targ.shape[1]):
-      # passing enc_output to the decoder
-      predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
-
-      loss += loss_function(targ[:, t], predictions, loss_object)
-
-      # using teacher forcing
-      dec_input = tf.expand_dims(targ[:, t], 1)
+    loss = model(inp, targ, VOCAB, enc_hidden, loss_object, BATCH_SIZE)
 
   batch_loss = (loss / int(targ.shape[1]))
 
-  variables = encoder.trainable_variables + decoder.trainable_variables
+  variables = model.trainable_variables
 
   gradients = tape.gradient(loss, variables)
 
@@ -137,100 +145,48 @@ def train_step(inp, targ, enc_hidden, encoder, decoder, attention, optimizer , l
 
   return batch_loss
 
-def train():
+def train(dataset, EMBED_SIZE, HIDDEN_SIZE, DROPOUT_RATE, BATCH_SIZE, NUM_TRAIN_STEPS, BUFFER_SIZE, steps_per_epoch, vocab_inp_size, vocab_tar_size, VOCAB):
     
     print("initializing seq2seq model...")
-    print("initializing seq2seq model... encoder")
-    encoder = Encoder(vocab_inp_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
-    print("initializing seq2seq model... decoder")
-    decoder = Decoder(vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
-    print("initializing seq2seq model... attention layer")
-    attention_layer = BahdanauAttention(10)
+    model = NMT(vocab_inp_size, vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
+    
     print("initializing seq2seq model... optimizer")
     optimizer = tf.keras.optimizers.Adam()
+    
     print("initializing seq2seq model... loss")
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
     
     print("initializing seq2seq model... defining checkpoint")
-    checkpoint, checkpoint_prefix = define_checkpoints(optimizer, encoder, decoder)
+    checkpoint, checkpoint_prefix = define_checkpoints(optimizer, model)
     
     for epoch in range(NUM_TRAIN_STEPS):
+        
       start = time.time()
     
-      enc_hidden = encoder.initialize_hidden_state()
+      enc_hidden = model.encoder.initialize_hidden_state()
       total_loss = 0
     
       for (batch, (inp, targ)) in enumerate(dataset.take(BUFFER_SIZE)):
     
-        batch_loss = train_step(inp, targ, enc_hidden, encoder = encoder, 
-                                decoder = decoder, attention = attention_layer, 
-                                optimizer = optimizer, loss_object = loss_object)
+        batch_loss = train_step(model, inp, targ, VOCAB, enc_hidden, optimizer, loss_object, BATCH_SIZE)
         total_loss += batch_loss
         if batch % 100 == 0:
           print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1,
                                                          batch,
                                                          batch_loss.numpy()))
-      # saving (checkpoint) the model every 2 epochs
-      #if (epoch + 1) % 2 == 0:
-      print("Saving model...")
+      print("Saving checkpoint...")
       checkpoint.save(file_prefix = checkpoint_prefix)
     
-      print('Epoch {} Loss {:.4f}'.format(epoch + 1,
-                                          total_loss / BATCH_SIZE))
+      print('Epoch {} Loss {:.4f}'.format(epoch + 1, total_loss / BATCH_SIZE))
       print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+     
+    print('training complete!')
+    print('saving weights!')
+    model.save_weights('nmt_model',save_format='hdf5')
 
 def test():
     
-    vocab_inp_size = len(VOCAB.src) +1
-    vocab_tar_size = len(VOCAB.tgt) +1
-    EMBED_SIZE = 2
-    HIDDEN_SIZE = 2
-    DROPOUT_RATE = 0.2
-    BATCH_SIZE = 1000
-    NUM_TRAIN_STEPS = 2
-    BUFFER_SIZE = len(src_pad)
-    steps_per_epoch = len(src_pad)//BATCH_SIZE
-    
-    
-    print("initializing seq2seq model...")
-    print("initializing seq2seq model... encoder")
-    encoder = Encoder(vocab_inp_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
-    print("initializing seq2seq model... decoder")
-    decoder = Decoder(vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
-    print("initializing seq2seq model... attention layer")
-    attention_layer = BahdanauAttention(10)
-    print("initializing seq2seq model... optimizer")
-    optimizer = tf.keras.optimizers.Adam()
-    print("initializing seq2seq model... loss")
-    loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
-    
-    print("initializing seq2seq model... defining checkpoint")
-    checkpoint, checkpoint_prefix = define_checkpoints(optimizer, encoder, decoder)
-    
-    for epoch in range(NUM_TRAIN_STEPS):
-      start = time.time()
-    
-      enc_hidden = encoder.initialize_hidden_state()
-      total_loss = 0
-    
-      for (batch, (inp, targ)) in enumerate(dataset.take(BUFFER_SIZE)):
-    
-        batch_loss = train_step(inp, targ, enc_hidden, encoder = encoder, 
-                                decoder = decoder, attention = attention_layer, 
-                                optimizer = optimizer, loss_object = loss_object)
-        total_loss += batch_loss
-        if batch % 100 == 0:
-          print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1,
-                                                         batch,
-                                                         batch_loss.numpy()))
-      # saving (checkpoint) the model every 2 epochs
-      #if (epoch + 1) % 2 == 0:
-      print("Saving model...")
-      checkpoint.save(file_prefix = checkpoint_prefix)
-    
-      print('Epoch {} Loss {:.4f}'.format(epoch + 1,
-                                          total_loss / BATCH_SIZE))
-      print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+    raise NotImplementedError
 
     
 def decode(sentence):

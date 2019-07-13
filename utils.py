@@ -2,6 +2,7 @@ import math
 from typing import List
 import numpy as np 
 import tensorflow as tf
+import os
 
 """ Neural Machiner Translation:
     based on CS 224n Assignment 4 
@@ -136,4 +137,11 @@ def generate_target_mask(matrix, tgt_lengths, BATCH_SIZE):
         masks_[ids,_-1:] = 0
         
     return tf.convert_to_tensor(masks_)
+
+def define_checkpoints(optimizer, model):
+    checkpoint_dir = './training_checkpoints'
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer,
+                                     model = model)
+    return checkpoint, checkpoint_prefix
     
