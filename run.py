@@ -36,7 +36,7 @@ if __name__ == '__main__':
     
     print("defining parameters...")
     EMBED_SIZE = 256
-    HIDDEN_SIZE = 256
+    HIDDEN_SIZE = 1024
     DROPOUT_RATE = 0.2
     BATCH_SIZE = 256
     NUM_TRAIN_STEPS = 20
