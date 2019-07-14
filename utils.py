@@ -2,26 +2,10 @@ import math
 from typing import List
 import numpy as np 
 import tensorflow as tf
-import os
-
-""" Neural Machiner Translation:
-    based on CS 224n Assignment 4 
-    
-    -- Utilities below are helper functions to:
-       1. read the file 
-       2. pad the sentences to have same length
-       3. genrate batches of source-target pair sentences, i.e, via "yield"
-"""   
-    
+import os    
 
 def read_file(filepath, source):
-    """ 
-        Read the source and the target file:
-        @param source == 'src': source language file
-        @param source == 'tgt': target language file
-        @param filepath: path to the file containing the corpus
-        
-    """
+
     data = []
     
     for line in open(filepath):
@@ -37,13 +21,7 @@ def read_file(filepath, source):
     return data
 
 def read_sent(sent, source):
-    """ 
-        Read the source and the target file:
-        @param source == 'src': source language file
-        @param source == 'tgt': target language file
-        @param filepath: path to the file containing the corpus
-        
-    """
+    
     data = []
         
     sentence = sent.strip().split(' ')
@@ -57,22 +35,10 @@ def read_sent(sent, source):
     return data
 
 def pad_sents(sents, pad_token):
-    """ 
-    Pad list of sentences according to the longest sentence in the batch.
-    
-    @param sents (list[list[str]]): list of sentences, where each sentence
-                                    is represented as a list of words
-    @param pad_token (str): padding token
-    @returns sents_padded (list[list[str]]): list of sentences where sentences shorter
-        than the max length sentence are padded out with the pad_token, such that
-        each sentences in the batch now has equal length.
-    """
+
     sents_padded = []
     
     max_len = 0
-
-    
-    #if any(isinstance(el, list) for el in sents):
         
     for sent in sents:
         
@@ -87,18 +53,11 @@ def pad_sents(sents, pad_token):
             sent = sent + [pad_token] * (max_len - len(sent))
         
         sents_padded.append(sent) 
-    #else:
-    #    sents_padded = sents
     
     return sents_padded
 
 def batch_iter(data, batch_size, shuffle=False):
-    """ 
-    Yield batches of source and target sentences reverse sorted by length (largest to smallest).
-    @param data (list of (src_sent, tgt_sent)): list of tuples containing source and target sentence
-    @param batch_size (int): batch size
-    @param shuffle (boolean): whether to randomly shuffle the dataset
-    """
+
     batch_num = math.ceil(len(data) / batch_size)
     index_array = list(range(len(data)))
 

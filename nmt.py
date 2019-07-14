@@ -20,8 +20,11 @@ class Encoder(tf.keras.Model):
                                    recurrent_initializer='glorot_uniform')
 
   def call(self, x, hidden):
+    mask = tf.math.logical_not(tf.math.equal(x, 0))
     x = self.embedding(x)
     output, state = self.gru(x, initial_state = hidden)
+    mask = tf.cast(mask, dtype=output.dtype)
+    output = output*mask
     return output, state
 
   def initialize_hidden_state(self):
@@ -180,39 +183,40 @@ def train(dataset, EMBED_SIZE, HIDDEN_SIZE, DROPOUT_RATE, BATCH_SIZE, NUM_TRAIN_
       print('Epoch {} Loss {:.4f}'.format(epoch + 1, total_loss / BATCH_SIZE))
       print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
      
-    print('training complete!')
     print('saving weights!')
     model.save_weights('nmt_model',save_format='hdf5')
 
-def test():
+def batch_decode():
     
     raise NotImplementedError
 
-    
-def decode(sentence):
+def decode(model, sentence, vocab_file_path):
     
     print('processing sentence...')
-    VOCAB = Vocab.load('VOCAB_FILE')
+    VOCAB = Vocab.load(vocab_file_path)
     src_sents = read_sent(sentence, source='src')
     src_pad = VOCAB.src.to_input_tensor(src_sents)
     
+    result = ''
+    
+    hidden = [tf.zeros((1, model.encoder.enc_units))]
+    enc_out, enc_hidden = model.encoder(src_pad, hidden)
+    
+    dec_hidden = enc_hidden
+    dec_input = tf.expand_dims([VOCAB.tgt['<s>']], 0)
+    
     for t in range(50):
-        predictions, dec_hidden, attention_weights = decoder(dec_input,
-                                                             dec_hidden,
-                                                             enc_out)
-
-        # storing the attention weights to plot later on
+        predictions, dec_hidden, attention_weights = model.decoder(dec_input, dec_hidden, enc_out)
+        
         attention_weights = tf.reshape(attention_weights, (-1, ))
-        attention_plot[t] = attention_weights.numpy()
 
         predicted_id = tf.argmax(predictions[0]).numpy()
 
-        result += targ_lang.index_word[predicted_id] + ' '
+        result += VOCAB.tgt.indices2words([predicted_id])[0] + ' '
 
-        if targ_lang.index_word[predicted_id] == '<end>':
-            return result, sentence, attention_plot
-
-        # the predicted ID is fed back into the model
+        if VOCAB.tgt.indices2words([predicted_id])[0] == '</s>' or VOCAB.tgt.indices2words([predicted_id])[0] == '<unk>':
+            return result, sentence
+        
         dec_input = tf.expand_dims([predicted_id], 0)
 
-    return result, sentence, attention_plot
+    return result, sentence

@@ -7,13 +7,17 @@ Usage:
     run.py decode MODEL_PATH --TEST_SENTENCE=<sent>
 """
 import os
+
+os.chdir('C:/Users/u346442/Documents/Stuffs/Deep Learning/Neural Machine Translation/Neural-Machine-Translation')
+
+import os
 from docopt import docopt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from utils import *
 from vocab import *
-from nmt import Encoder, Decoder, Attention, NMT, define_checkpoints, train_step, train, decode 
+from nmt import Encoder, Decoder, Attention, NMT, define_checkpoints, train_step, train, decode, batch_decode
 import math
 import time
 
@@ -38,7 +42,7 @@ if __name__ == '__main__':
     EMBED_SIZE = 256
     HIDDEN_SIZE = 256
     DROPOUT_RATE = 0.2
-    BATCH_SIZE = 256
+    BATCH_SIZE = 32
     NUM_TRAIN_STEPS = 2
     BUFFER_SIZE = len(src_pad)
     steps_per_epoch = len(src_pad)//BATCH_SIZE
@@ -72,13 +76,13 @@ if __name__ == '__main__':
     if args['decode']:
         
         print('restoring pre-trained model')
-        encoder = Encoder(vocab_inp_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
-        decoder = Decoder(vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)    
-        optimizer = tf.keras.optimizers.Adam()
-        checkpoint = tf.train.Checkpoint(optimizer=optimizer,
-                                 encoder=encoder,
-                                 decoder=decoder)
+        model = NMT(vocab_inp_size, vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE)
+        sample_hidden = model.encoder.initialize_hidden_state()
+        sample_output, sample_hidden = model.encoder(tf.random.uniform((BATCH_SIZE, 1)), sample_hidden)
+        sample_decoder_output, _, _ = model.decoder(tf.random.uniform((BATCH_SIZE, 1)),
+                                              sample_hidden, sample_output)
+        model.load_weights('nmt_model')
         print("beginning decoding...")
-        decode(args['--TEST_SENTENCE'])
+        decode(model, args['--TEST_SENTENCE'])
         
     print("training complete!")
