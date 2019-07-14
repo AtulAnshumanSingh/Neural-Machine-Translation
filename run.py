@@ -42,8 +42,8 @@ if __name__ == '__main__':
     EMBED_SIZE = 256
     HIDDEN_SIZE = 256
     DROPOUT_RATE = 0.2
-    BATCH_SIZE = 32
-    NUM_TRAIN_STEPS = 2
+    BATCH_SIZE = 256
+    NUM_TRAIN_STEPS = 20
     BUFFER_SIZE = len(src_pad)
     steps_per_epoch = len(src_pad)//BATCH_SIZE
     vocab_inp_size = len(VOCAB.src) +1
