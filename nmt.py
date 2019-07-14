@@ -184,7 +184,7 @@ def train(dataset, EMBED_SIZE, HIDDEN_SIZE, DROPOUT_RATE, BATCH_SIZE, NUM_TRAIN_
       print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
      
     print('saving weights!')
-    model.save_weights('nmt_model',save_format='hdf5')
+    model.save_weights('nmt_model_2019_07_14',save_format='hdf5')
 
 def batch_decode():
     
