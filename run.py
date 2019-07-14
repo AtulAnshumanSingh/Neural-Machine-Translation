@@ -7,10 +7,6 @@ Usage:
     run.py decode MODEL_PATH --TEST_SENTENCE=<sent>
 """
 import os
-
-os.chdir('C:/Users/u346442/Documents/Stuffs/Deep Learning/Neural Machine Translation/Neural-Machine-Translation')
-
-import os
 from docopt import docopt
 import numpy as np
 import pandas as pd
