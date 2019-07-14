@@ -21,7 +21,7 @@ class Encoder(tf.keras.Model):
 
   def call(self, x, hidden):
     mask = tf.math.logical_not(tf.math.equal(x, 0))
-	mask = tf.expand_dims(mask, axis = 2)
+    mask = tf.expand_dims(mask, axis = 2)
     x = self.embedding(x)
     output, state = self.gru(x, initial_state = hidden)
     mask = tf.cast(mask, dtype=output.dtype)
