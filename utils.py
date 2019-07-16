@@ -74,29 +74,6 @@ def batch_iter(data, batch_size, shuffle=False):
 
         yield src_sents, tgt_sents
 
-def mask_fill_inf(matrix, mask):
-    
-    negmask = 1 - mask
-    num = 3.4 * math.pow(10, 38)
-    return (-((mask * num + num) - num)) + (matrix * negmask)
-    
-def gerenrate_mask(enc_masks, source_lengths, enc_hiddens):
-    
-    masks_ = np.zeros([enc_hiddens.shape[0], enc_hiddens.shape[1]], dtype = np.float32)
-    for ids, _ in enumerate(source_lengths):
-        masks_[ids,_:] = 1
-        
-    return tf.convert_to_tensor(masks_)
-
-def generate_target_mask(matrix, tgt_lengths, BATCH_SIZE):
-    
-    masks_ = np.ones([BATCH_SIZE, matrix.shape[1]], dtype = np.float32)
-    
-    for ids, _ in enumerate(tgt_lengths):
-        masks_[ids,_-1:] = 0
-        
-    return tf.convert_to_tensor(masks_)
-
 def define_checkpoints(optimizer, model):
     checkpoint_dir = './training_checkpoints'
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")

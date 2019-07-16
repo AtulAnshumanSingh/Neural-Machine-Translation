@@ -9,6 +9,7 @@ import math
 import time
 
 class Encoder(tf.keras.Model):
+    
   def __init__(self, vocab_size, embedding_dim, enc_units, batch_sz):
     super(Encoder, self).__init__()
     self.batch_sz = batch_sz
@@ -32,6 +33,7 @@ class Encoder(tf.keras.Model):
     return tf.zeros((self.batch_sz, self.enc_units))
 
 class Attention(tf.keras.Model):
+    
   def __init__(self, units):
     super(Attention, self).__init__()
     self.W1 = tf.keras.layers.Dense(units)
@@ -39,26 +41,20 @@ class Attention(tf.keras.Model):
     self.V = tf.keras.layers.Dense(1)
 
   def call(self, query, values):
-    # hidden shape == (batch_size, hidden size)
-    # hidden_with_time_axis shape == (batch_size, 1, hidden size)
-    # we are doing this to perform addition to calculate the score
+
     hidden_with_time_axis = tf.expand_dims(query, 1)
 
-    # score shape == (batch_size, max_length, 1)
-    # we get 1 at the last axis because we are applying score to self.V
-    # the shape of the tensor before applying self.V is (batch_size, max_length, units)
     score = self.V(tf.nn.tanh(self.W1(values) + self.W2(hidden_with_time_axis)))
 
-    # attention_weights shape == (batch_size, max_length, 1)
     attention_weights = tf.nn.softmax(score, axis=1)
 
-    # context_vector shape after sum == (batch_size, hidden_size)
     context_vector = attention_weights * values
     context_vector = tf.reduce_sum(context_vector, axis=1)
 
     return context_vector, attention_weights
 
 class Decoder(tf.keras.Model):
+    
   def __init__(self, vocab_size, embedding_dim, dec_units, batch_sz):
     super(Decoder, self).__init__()
     self.batch_sz = batch_sz
@@ -70,32 +66,24 @@ class Decoder(tf.keras.Model):
                                    recurrent_initializer='glorot_uniform')
     self.fc = tf.keras.layers.Dense(vocab_size)
 
-    # used for attention
     self.attention = Attention(self.dec_units)
 
   def call(self, x, hidden, enc_output):
-    # enc_output shape == (batch_size, max_length, hidden_size)
+
     context_vector, attention_weights = self.attention(hidden, enc_output)
 
-    # x shape after passing through embedding == (batch_size, 1, embedding_dim)
     x = self.embedding(x)
 
-    # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
     x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
 
-    # passing the concatenated vector to the GRU
     output, state = self.gru(x)
 
-    # output shape == (batch_size * 1, hidden_size)
     output = tf.reshape(output, (-1, output.shape[2]))
 
-    # output shape == (batch_size, vocab)
     x = self.fc(output)
 
     return x, state, attention_weights
 
-
-# Declare an NMT class to call other classes
 class NMT(tf.keras.Model):
     
     def __init__(self, vocab_inp_size, vocab_tar_size, EMBED_SIZE, HIDDEN_SIZE, BATCH_SIZE):
@@ -113,12 +101,11 @@ class NMT(tf.keras.Model):
         loss = 0
         
         for t in range(1, target.shape[1]):
-          # passing enc_output to the decoder
+            
           predictions, dec_hidden, _ = self.decoder(dec_input, dec_hidden, enc_output)
     
           loss += self.loss_function(target[:, t], predictions, loss_object)
     
-          # using teacher forcing
           dec_input = tf.expand_dims(target[:, t], 1)
         
         return loss
@@ -185,19 +172,53 @@ def train(dataset, EMBED_SIZE, HIDDEN_SIZE, DROPOUT_RATE, BATCH_SIZE, NUM_TRAIN_
       print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
      
     print('saving weights!')
-    model.save_weights('/content/gdrive/My Drive/Neural-M-T/nmt_model_2019_07_14',save_format='hdf5')
+    model.save_weights('nmt_model',save_format='hdf5')
 
-def batch_decode():
-    
-    raise NotImplementedError
-
-def decode(model, sentence, vocab_file_path):
+def decode(model, sent_file, vocab):
     
     print('processing sentence...')
-    VOCAB = Vocab.load(vocab_file_path)
-    src_sents = read_sent(sentence, source='src')
+    VOCAB = vocab
+    src_sents = read_file(sent_file, source='src')
     src_pad = VOCAB.src.to_input_tensor(src_sents)
     
+    for sents in src_pad:
+        
+        sents = sents.reshape(1,-1)
+
+        result = ''
+        
+        hidden = [tf.zeros((1, model.encoder.enc_units))]
+        enc_out, enc_hidden = model.encoder(sents, hidden)
+        
+        dec_hidden = enc_hidden
+        dec_input = tf.expand_dims([VOCAB.tgt['<s>']], 0)
+        
+        for t in range(50):
+            predictions, dec_hidden, attention_weights = model.decoder(dec_input, dec_hidden, enc_out)
+            
+            attention_weights = tf.reshape(attention_weights, (-1, ))
+    
+            predicted_id = tf.argmax(predictions[0]).numpy()
+    
+            result += VOCAB.tgt.indices2words([predicted_id])[0] + ' '
+    
+            if VOCAB.tgt.indices2words([predicted_id])[0] == '</s>':
+                break
+            
+            dec_input = tf.expand_dims([predicted_id], 0)
+        
+        print('Translation:',  result)
+
+def decode_sentence(model, sent_file, vocab):
+    
+    print('processing sentence...')
+    VOCAB = vocab
+    src_sents = read_sent(sent_file, source='src')
+    
+    print(src_sents)
+    src_pad = VOCAB.src.to_input_tensor(src_sents)
+    print(src_pad.shape)
+
     result = ''
     
     hidden = [tf.zeros((1, model.encoder.enc_units))]
@@ -215,9 +236,10 @@ def decode(model, sentence, vocab_file_path):
 
         result += VOCAB.tgt.indices2words([predicted_id])[0] + ' '
 
-        if VOCAB.tgt.indices2words([predicted_id])[0] == '</s>' or VOCAB.tgt.indices2words([predicted_id])[0] == '<unk>':
-            return result, sentence
+        if VOCAB.tgt.indices2words([predicted_id])[0] == '</s>':
+            return result, sent_file
         
         dec_input = tf.expand_dims([predicted_id], 0)
-
-    return result, sentence
+    
+    print('Sentence:',  sent_file)
+    print('Translation:',  result)

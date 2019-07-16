@@ -82,7 +82,7 @@ class VocabEntry(object):
 
         return [self.id2word[w_id] for w_id in word_ids]
 
-    def to_input_tensor(self, sents: List[List[str]]):
+    def to_input_tensor(self, sents):
 
         word_ids = self.words2indices(sents)
         sents_t = pad_sents(word_ids, self['<pad>'])
@@ -95,8 +95,7 @@ class VocabEntry(object):
         vocab_entry = VocabEntry()
         word_freq = Counter(chain(*corpus))
         valid_words = [w for w, v in word_freq.items() if v >= freq_cutoff]
-        print('number of word types: {}, number of word types w/ frequency >= {}: {}'
-              .format(len(word_freq), freq_cutoff, len(valid_words)))
+        print('number of word types: {}, number of word types w/ frequency >= {}: {}'.format(len(word_freq), freq_cutoff, len(valid_words)))
         top_k_words = sorted(valid_words, key=lambda w: word_freq[w], reverse=True)[:size]
         for word in top_k_words:
             vocab_entry.add(word)
