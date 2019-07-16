@@ -174,7 +174,7 @@ def train(dataset, EMBED_SIZE, HIDDEN_SIZE, DROPOUT_RATE, BATCH_SIZE, NUM_TRAIN_
     print('saving weights!')
     model.save_weights('nmt_model',save_format='hdf5')
 
-def decode(model, sent_file, vocab):
+def decode(model, sent_file, vocab, push_to_file=0):
     
     print('processing sentence...')
     VOCAB = vocab

@@ -3,8 +3,19 @@
 """
 Usage:
     run.py train --vocab=<file> --src-file=<file> --tgt-file=<file>
-    run.py decode --model-file=<file> --sent-file=<file> --vocab=<file>
+    run.py decode --model-file=<file> --sent-file=<file> --vocab=<file> [options]
     run.py batch_decode --model-file=<file> --test-file=<file> --vocab=<file>
+
+Options:
+    -h --help                  Show this screen.
+    --model-file=<file>        Pre-trained model file in hdf5 format
+    --test-file=<file>         File of test sentences
+    --vocabe=<int>             Vocab file
+    --EMBED_SIZE=<int>         Size of word embedding
+    --HIDDEN_SIZE=<int>        Size of hidden units in encoder and decoder
+    --DROPOUT_RATE=<float>     Dropout rate
+    --BATCH_SIZE=<int>         Batch size
+    --NUM_TRAIN_STEPS=<int>    Number of epochs
 """
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -23,11 +34,30 @@ if __name__ == '__main__':
     args = docopt(__doc__)
     
     print("defining parameters...")
-    EMBED_SIZE = 256
-    HIDDEN_SIZE = 512
-    DROPOUT_RATE = 0.2
-    BATCH_SIZE = 32
-    NUM_TRAIN_STEPS = 2
+    if args['--EMBED_SIZE']:
+        EMBED_SIZE = args['--EMBED_SIZE']
+    else:
+        EMBED_SIZE = 256
+    
+    if args['--HIDDEN_SIZE']:
+        HIDDEN_SIZE = args['--HIDDEN_SIZE']
+    else:
+        HIDDEN_SIZE = 512
+    
+    if args['--DROPOUT_RATE']:
+        DROPOUT_RATE = args['--DROPOUT_RATE']
+    else:
+        DROPOUT_RATE = 0.2
+    
+    if args['--BATCH_SIZE']:
+        BATCH_SIZE = args['--BATCH_SIZE']
+    else:
+        BATCH_SIZE = 256
+    
+    if args['--NUM_TRAIN_STEPS']:
+        NUM_TRAIN_STEPS = args['--NUM_TRAIN_STEPS']
+    else:
+        NUM_TRAIN_STEPS = 10
     
     if args['train']:
         
@@ -87,6 +117,4 @@ if __name__ == '__main__':
         sample_decoder_output, _, _ = model.decoder(tf.random.uniform((BATCH_SIZE, 1)), sample_hidden, sample_output)
         model.load_weights(args['--model-file'])
         print("beginning decoding...")
-        decode(model, args['--sent-file'], VOCAB)
-        
- 
+        decode(model, args['--sent-file'], VOCAB, 0)
